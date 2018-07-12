@@ -26,8 +26,10 @@ ARG USER_ID=802
 ARG USER_GROUP=wso2
 ARG USER_GROUP_ID=802
 ARG USER_HOME=/home/${USER}
-# set dependant files directory
-ARG FILES=./files
+
+ARG DOWNLOAD_URL=http://domain.com/folder
+ARG FILES=/home/${USER}/files
+
 # set wso2 product configurations
 ARG WSO2_SERVER=wso2ei
 ARG WSO2_SERVER_VERSION=6.2.0
@@ -41,6 +43,7 @@ ARG JAVA_HOME=${USER_HOME}/java
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     curl \
+    unzip \
     netcat && \
     rm -rf /var/lib/apt/lists/* && \
     echo '[ ! -z "$TERM" -a -r /etc/motd ] && cat /etc/motd' \
@@ -54,15 +57,32 @@ RUN apt-get update && \
 
 # create a user group and a user
 RUN groupadd --system -g ${USER_GROUP_ID} ${USER_GROUP} && \
-    useradd --system --create-home --home-dir ${USER_HOME} --no-log-init -g ${USER_GROUP_ID} -u ${USER_ID} ${USER}
+    useradd --system --create-home --home-dir ${USER_HOME} --no-log-init -g ${USER_GROUP_ID} -u ${USER_ID} ${USER} && \
+    mkdir ${FILES}
+
+ADD --chown=wso2carbon:wso2 ${DOWNLOAD_URL}/wso2ei-6.2.0.zip ${FILES}
+ADD --chown=wso2carbon:wso2 ${DOWNLOAD_URL}/jdk-8u171-linux-x64.tar.gz ${FILES}
+ADD --chown=wso2carbon:wso2 ${DOWNLOAD_URL}/mysql-connector-java-5.1.46-bin.jar ${FILES}
+ADD --chown=wso2carbon:wso2 ${DOWNLOAD_URL}/mssql-jdbc-6.4.0.jre8.jar ${FILES}
+
+RUN tar -zxvf ${FILES}/jdk-8u171-linux-x64.tar.gz -C ${FILES}
+RUN mv ${FILES}/jdk1.8.0_171 ${JAVA_HOME}
+RUN unzip ${FILES}/wso2ei-6.2.0.zip -d ${USER_HOME}
+RUN mv ${FILES}/mysql-connector-java-5.1.46-bin.jar ${WSO2_SERVER_HOME}/lib
+RUN mv ${FILES}/mssql-jdbc-6.4.0.jre8.jar ${WSO2_SERVER_HOME}/lib
+
+RUN chown -R wso2carbon:wso2 ${JAVA_HOME}
+RUN chown -R wso2carbon:wso2 ${WSO2_SERVER_HOME}
+
+RUN rm -vR ${FILES}
 
 # copy jdk, wso2 product distribution to user's home directory and copy mysql connector jar to product distribution
-COPY --chown=wso2carbon:wso2 ${FILES}/${JDK_DIST} ${JAVA_HOME}
-COPY --chown=wso2carbon:wso2 ${FILES}/${WSO2_SERVER_DIST} ${WSO2_SERVER_HOME}
-COPY --chown=wso2carbon:wso2 ${FILES}/mysql-connector-java-*-bin.jar ${WSO2_SERVER_HOME}/lib
+#COPY --chown=wso2carbon:wso2 ${FILES}/${JDK_DIST} ${JAVA_HOME}
+#COPY --chown=wso2carbon:wso2 ${FILES}/${WSO2_SERVER_DIST} ${WSO2_SERVER_HOME}
+#COPY --chown=wso2carbon:wso2 ${FILES}/mysql-connector-java-*-bin.jar ${WSO2_SERVER_HOME}/lib
 # artifacts for Kubernetes membership scheme based clustering
-COPY --chown=wso2carbon:wso2 ${FILES}/dnsjava-*.jar ${WSO2_SERVER_HOME}/lib
-COPY --chown=wso2carbon:wso2 ${FILES}/kubernetes-membership-scheme-*.jar ${WSO2_SERVER_HOME}/dropins
+#COPY --chown=wso2carbon:wso2 ${FILES}/dnsjava-*.jar ${WSO2_SERVER_HOME}/lib
+#COPY --chown=wso2carbon:wso2 ${FILES}/kubernetes-membership-scheme-*.jar ${WSO2_SERVER_HOME}/dropins
 
 # set the user and work directory
 USER ${USER}

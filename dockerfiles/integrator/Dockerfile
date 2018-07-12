@@ -20,11 +20,22 @@
 FROM wso2ei-base:6.2.0
 
 # set dependant files directory
-ARG FILES=./files
+ARG DOWNLOAD_URL=http://domain.com/folder
+ARG USER=wso2carbon
+ARG FILES=/home/${USER}/files
+
+RUN mkdir ${FILES}
+
+ADD --chown=wso2carbon:wso2 ${DOWNLOAD_URL}/andes-client-3.2.19.jar ${FILES}
+ADD --chown=wso2carbon:wso2 ${DOWNLOAD_URL}/geronimo-jms_1.1_spec-1.1.0.wso2v1.jar ${FILES}
+ADD --chown=wso2carbon:wso2 ${DOWNLOAD_URL}/org.wso2.securevault-1.0.0-wso2v2.jar ${FILES}
+
+RUN cp ${FILES}/*.jar ${WSO2_SERVER_HOME}/lib && \
+	chown -R wso2carbon:wso2 ${WSO2_SERVER_HOME}/lib
 
 # copy entrypoint bash script to user home and external libraries to product home
 COPY --chown=wso2carbon:wso2 init.sh ${WORKING_DIRECTORY}/
-COPY --chown=wso2carbon:wso2 ${FILES} ${WSO2_SERVER_HOME}/lib
+
 # set temporary location for shared artifacts
 RUN mkdir -p ${WORKING_DIRECTORY}/wso2-tmp/ && \
     cp -r ${WSO2_SERVER_HOME}/repository/deployment/server/ ${WORKING_DIRECTORY}/wso2-tmp/
